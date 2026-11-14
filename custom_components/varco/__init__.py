@@ -61,6 +61,7 @@ async def _async_resolve_identity(store, entry_data: dict) -> dict[str, str]:
 
 
 async def _async_setup_authority(hass, entry_id: str, entry_data: dict, entry=None) -> bool:
+    from .camera import async_register_camera_snapshot
     from .relay import VarcoRelay
     from .services import async_setup_services
     from .websocket_api import async_setup as async_setup_websocket
@@ -79,6 +80,7 @@ async def _async_setup_authority(hass, entry_id: str, entry_data: dict, entry=No
         )
     relay = VarcoRelay(hass, {**entry_data, **identity}, store)
     hass.data[DOMAIN][entry_id] = {"store": store, "relay": relay}
+    async_register_camera_snapshot(hass)
     await async_setup_services(hass)
     async_setup_websocket(hass)
     await _async_register_panel(hass)
@@ -89,6 +91,11 @@ async def async_unload_entry(hass, entry) -> bool:
     data = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if data:
         await data["relay"].async_stop()
+    remaining = hass.data.get(DOMAIN, {})
+    if not any(isinstance(value, dict) and "relay" in value for value in remaining.values()):
+        from .camera import async_unregister_camera_snapshot
+
+        async_unregister_camera_snapshot(hass)
     return True
 
 
