@@ -498,7 +498,12 @@ class VarcoAuthority:
         restriction_error = await self._enforce_restrictions(grant, "camera", {"entity_ids": [entity_id]}, message)
         if restriction_error:
             return restriction_error
-        return {"type": "camera_snapshot", "request_id": message.get("request_id"), "entity_id": entity_id, "content_type": "image/jpeg", "body": await self._camera_payload(entity_id)}
+        try:
+            body = await self._camera_payload(entity_id)
+        except Exception as err:
+            await audit.async_log(self.store, "camera_snapshot_error", grant.grant_id, {"operation": "camera_snapshot"})
+            return self._error(message.get("request_id"), "camera_snapshot_failed", f"Camera snapshot failed: {err}")
+        return {"type": "camera_snapshot", "request_id": message.get("request_id"), "entity_id": entity_id, "content_type": "image/jpeg", "body": body}
 
     async def _call_service(self, grant: Grant, message: dict[str, Any]) -> dict[str, Any]:
         return await call_service(self, grant, message, _registry_modules)
