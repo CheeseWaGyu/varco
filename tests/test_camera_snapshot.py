@@ -84,6 +84,27 @@ def test_camera_snapshot_returns_registered_hook_payload():
     asyncio.run(run())
 
 
+def test_camera_snapshot_hook_error_returns_error_with_request_id():
+    async def run():
+        hass = FakeHass()
+
+        async def failing_snapshot(entity_id):
+            raise RuntimeError("Unable to get image")
+
+        hass.varco_camera_snapshot = failing_snapshot
+        authority = await paired_authority(hass)
+        response = await authority.handle_plaintext(
+            "s1",
+            {"type": "camera_snapshot", "entity_id": "camera.porta", "request_id": "req-1"},
+        )
+        assert response["type"] == "error"
+        assert response["request_id"] == "req-1"
+        assert response["code"] == "camera_snapshot_failed"
+        assert "Unable to get image" in response["message"]
+
+    asyncio.run(run())
+
+
 def test_camera_snapshot_without_hook_keeps_placeholder():
     async def run():
         authority = await paired_authority(FakeHass())
